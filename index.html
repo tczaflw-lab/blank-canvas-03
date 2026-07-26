@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>批量音视频格式转换工具</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: rgba(255, 255, 255, .94);
+      --panel-2: #f8fafc;
+      --text: #182234;
+      --muted: #667085;
+      --line: #dbe3ee;
+      --primary: #2563eb;
+      --primary-2: #1d4ed8;
+      --success: #07883f;
+      --warning: #b54708;
+      --danger: #c62828;
+      --shadow: 0 18px 50px rgba(39, 55, 86, .10);
+      --radius: 18px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0c111b;
+        --panel: rgba(21, 29, 43, .96);
+        --panel-2: #111827;
+        --text: #edf2f7;
+        --muted: #a8b3c5;
+        --line: #2b374a;
+        --primary: #5b8cff;
+        --primary-2: #7aa2ff;
+        --success: #4ade80;
+        --warning: #fbbf24;
+        --danger: #fb7185;
+        --shadow: 0 18px 50px rgba(0, 0, 0, .28);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, .13), transparent 32%),
+        radial-gradient(circle at 100% 5%, rgba(16, 185, 129, .09), transparent 30%),
+        var(--bg);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, select, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .52; }
+
+    .app { width: min(1480px, calc(100% - 28px)); margin: 0 auto; padding: 28px 0 48px; }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      margin-bottom: 18px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: clamp(26px, 4vw, 42px); letter-spacing: -.04em; }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.7; }
+    .privacy-badge {
+      flex: 0 0 auto;
+      border: 1px solid color-mix(in srgb, var(--success) 45%, var(--line));
+      color: var(--success);
+      background: color-mix(in srgb, var(--success) 8%, var(--panel));
+      border-radius: 999px;
+      padding: 9px 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(330px, .75fr); gap: 18px; align-items: start; }
+    .stack { display: grid; gap: 18px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .panel-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .panel-head h2 { margin: 0; font-size: 17px; }
+    .panel-body { padding: 18px 20px 20px; }
+
+    .drop-zone {
+      min-height: 178px;
+      border: 2px dashed color-mix(in srgb, var(--primary) 42%, var(--line));
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+      background: color-mix(in srgb, var(--primary) 4%, transparent);
+      transition: .2s ease;
+    }
+    .drop-zone.dragover { transform: translateY(-2px); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+    .drop-zone strong { display: block; font-size: 19px; margin-bottom: 8px; }
+    .drop-zone span { color: var(--muted); font-size: 14px; line-height: 1.65; }
+    .drop-icon { width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 14px; display: grid; place-items: center; color: white; background: linear-gradient(135deg, var(--primary), #7c3aed); font-size: 25px; box-shadow: 0 10px 25px rgba(37, 99, 235, .25); }
+
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .btn {
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 10px 14px;
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 700;
+      transition: .16s ease;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); border-color: color-mix(in srgb, var(--primary) 50%, var(--line)); }
+    .btn.primary { border-color: var(--primary); background: var(--primary); color: white; }
+    .btn.primary:hover:not(:disabled) { background: var(--primary-2); }
+    .btn.danger { color: var(--danger); }
+    .btn.success { color: white; background: var(--success); border-color: var(--success); }
+    .btn.small { padding: 7px 10px; font-size: 13px; }
+
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+    .toolbar-left, .toolbar-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .count { color: var(--muted); font-size: 13px; }
+
+    .file-table-wrap { overflow: auto; max-height: 480px; }
+    table { width: 100%; border-collapse: collapse; min-width: 820px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { position: sticky; top: 0; z-index: 2; background: var(--panel); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    td { font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    tr:hover td { background: color-mix(in srgb, var(--primary) 3%, transparent); }
+    .filename { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+    .type-select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; color: var(--text); background: var(--panel-2); }
+    .status { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 8px; background: var(--panel-2); color: var(--muted); white-space: nowrap; }
+    .status.processing { color: var(--primary); }
+    .status.success { color: var(--success); }
+    .status.error { color: var(--danger); }
+    .status.cancelled { color: var(--warning); }
+    .row-progress { width: 100px; height: 7px; border: 0; border-radius: 99px; overflow: hidden; appearance: none; background: var(--line); }
+    .row-progress::-webkit-progress-bar { background: var(--line); }
+    .row-progress::-webkit-progress-value { background: var(--primary); border-radius: 99px; }
+    .row-progress::-moz-progress-bar { background: var(--primary); }
+    .empty { padding: 48px 20px; text-align: center; color: var(--muted); }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: var(--muted); font-size: 13px; font-weight: 700; }
+    .field select, .field input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 10px 11px;
+      background: var(--panel-2);
+      color: var(--text);
+      outline: none;
+    }
+    .field select:focus, .field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent); }
+
+    .action-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--panel-2); }
+    .action-card + .action-card { margin-top: 12px; }
+    .action-card h3 { margin: 0 0 5px; font-size: 15px; }
+    .action-card p { margin: 0 0 12px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+    .action-card .btn { width: 100%; }
+
+    .engine-status { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 4px color-mix(in srgb, var(--muted) 14%, transparent); }
+    .dot.loading { background: var(--warning); animation: pulse 1s infinite; }
+    .dot.ready { background: var(--success); }
+    .dot.error { background: var(--danger); }
+    @keyframes pulse { 50% { opacity: .45; } }
+
+    .directory { display: grid; gap: 9px; }
+    .directory-name { border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; color: var(--muted); background: var(--panel-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .overall { display: grid; gap: 9px; }
+    .progress-line { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+    .progress-line > div { width: 0; height: 100%; background: linear-gradient(90deg, var(--primary), #7c3aed); transition: width .16s linear; }
+    .progress-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
+
+    .log { height: 185px; overflow: auto; background: #090d15; color: #c8d3e6; border-radius: 12px; padding: 12px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+
+    .tips { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+    .checkline { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 13px; }
+    .checkline input { width: 17px; height: 17px; accent-color: var(--primary); }
+
+    .toast-area { position: fixed; right: 18px; bottom: 18px; z-index: 50; display: grid; gap: 10px; width: min(390px, calc(100vw - 36px)); }
+    .toast { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-left: 4px solid var(--primary); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); animation: toastIn .22s ease; }
+    .toast.error { border-left-color: var(--danger); }
+    .toast.success { border-left-color: var(--success); }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } }
+
+    .footer-note { margin-top: 16px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; }
+      .privacy-badge { align-self: flex-start; }
+    }
+    @media (max-width: 600px) {
+      .app { width: min(100% - 18px, 1480px); padding-top: 18px; }
+      .panel-head, .panel-body { padding-left: 14px; padding-right: 14px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <h1>批量音视频格式转换工具</h1>
+        <p>批量导入、智能分类、提取视频音频、转换视频格式、转换音频格式。所有处理均在本机浏览器内完成。</p>
+      </div>
+      <div class="privacy-badge">🔒 本地处理 · 不上传文件</div>
+    </header>
+
+    <div class="grid">
+      <section class="stack">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>1. 导入音频和视频</h2>
+            <span class="count" id="formatHint">支持常见及大量专业/旧式媒体扩展名</span>
+          </div>
+          <div class="panel-body">
+            <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="拖放或选择音视频文件">
+              <div>
+                <div class="drop-icon">＋</div>
+                <strong>拖入任意数量的音频或视频</strong>
+                <span>也可点击下方按钮选择文件。对于无法按扩展名判断的文件，可在列表中手动指定“音频/视频”。</span>
+                <div class="btn-row" style="justify-content:center">
+                  <button class="btn primary" id="addFilesBtn" type="button">选择文件</button>
+                  <button class="btn" id="addFolderBtn" type="button">导入文件夹</button>
+                </div>
+              </div>
+            </div>
+            <input id="fileInput" type="file" multiple hidden />
+            <input id="folderInput" type="file" multiple webkitdirectory directory hidden />
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>文件队列</h2>
+            <span class="count" id="queueSummary">共 0 个文件</span>
+          </div>
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <button class="btn small" id="selectAllBtn" type="button">全选</button>
+              <button class="btn small" id="invertSelectBtn" type="button">反选</button>
+              <button class="btn small" id="removeSelectedBtn" type="button">移除选中</button>
+              <button class="btn small danger" id="clearBtn" type="button">清空队列</button>
+            </div>
+            <div class="toolbar-right">
+              <label class="checkline"><input type="checkbox" id="selectedOnly" /> 操作时仅处理已勾选文件</label>
+            </div>
+          </div>
+          <div class="file-table-wrap" id="tableWrap">
+            <div class="empty" id="emptyState">尚未导入文件</div>
+            <table id="fileTable" hidden>
+              <thead>
+                <tr>
+                  <th><input id="masterCheck" type="checkbox" aria-label="全选文件" /></th>
+                  <th>文件名</th>
+                  <th>识别类型</th>
+                  <th>原格式</th>
+                  <th>大小</th>
+                  <th>进度</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="fileBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>处理进度</h2>
+            <button class="btn small danger" id="stopBtn" type="button" disabled>停止任务</button>
+          </div>
+          <div class="panel-body stack">
+            <div class="overall">
+              <div class="progress-line"><div id="overallBar"></div></div>
+              <div class="progress-meta"><span id="overallText">等待任务</span><span id="overallPercent">0%</span></div>
+            </div>
+            <div class="log" id="logBox">工具已就绪。首次转换时将加载 FFmpeg 核心。</div>
+          </div>
+        </article>
+      </section>
+
+      <aside class="stack">
+        <article class="panel">
+          <div class="panel-head"><h2>2. 转换引擎</h2></div>
+          <div class="panel-body stack">
+            <div class="engine-status">
+              <span class="dot" id="engineDot"></span>
+              <div>
+                <strong id="engineTitle">FFmpeg 引擎未加载</strong>
+                <div class="count" id="engineDetail">首次加载约需下载 31 MB 核心文件</div>
+              </div>
+            </div>
+            <button class="btn" id="loadEngineBtn" type="button">初始化转换引擎</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><h2>3. 输出设置</h2></div>
+          <div class="panel-body stack">
+            <div class="directory">
+              <label class="field">
+                <span style="font-size:13px;color:var(--muted);font-weight:700">导出位置</span>
+                <span class="directory-name" id="directoryName">未指定：使用浏览器下载</span>
+              </label>
+              <button class="btn" id="chooseFolderBtn" type="button">选择导出文件夹</button>
+            </div>
+
+            <div class="form-grid">
+              <div class="field">
+                <label for="videoFormat">视频输出格式</label>
+                <select id="videoFormat">
+                  <option value="mp4">MP4（推荐）</option>
+                  <option value="mkv">MKV</option>
+                  <option value="webm">WebM</option>
+                  <option value="mov">MOV</option>
+                  <option value="avi">AVI</option>
+                  <option value="mpeg">MPEG</option>
+                  <option value="mpg">MPG</option>
+                  <option value="m4v">M4V（纯视频）</option>
+                  <option value="ts">TS</option>
+                  <option value="flv">FLV</option>
+                  <option value="ogv">OGV</option>
+                  <option value="3gp">3GP</option>
+                  <option value="wmv">WMV</option>
+                  <option value="gif">GIF（无音频）</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="audioFormat">音频输出格式</label>
+                <select id="audioFormat">
+                  <option value="mp3">MP3（推荐）</option>
+                  <option value="wav">WAV</option>
+                  <option value="m4a">M4A</option>
+                  <option value="aac">AAC</option>
+                  <option value="flac">FLAC</option>
+                  <option value="ogg">OGG Vorbis</option>
+                  <option value="opus">Opus</option>
+                  <option value="wma">WMA</option>
+                  <option value="ac3">AC-3</option>
+                  <option value="alac">ALAC（M4A 容器）</option>
+                  <option value="aiff">AIFF</option>
+                  <option value="au">AU</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="videoQuality">视频质量</label>
+                <select id="videoQuality">
+                  <option value="high">高质量</option>
+                  <option value="balanced" selected>均衡</option>
+                  <option value="small">较小体积</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="resolution">分辨率</label>
+                <select id="resolution">
+                  <option value="original">保持原始</option>
+                  <option value="2160">最高 4K</option>
+                  <option value="1080">最高 1080p</option>
+                  <option value="720">最高 720p</option>
+                  <option value="480">最高 480p</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="audioBitrate">音频码率</label>
+                <select id="audioBitrate">
+                  <option value="96k">96 kbps</option>
+                  <option value="128k">128 kbps</option>
+                  <option value="192k" selected>192 kbps</option>
+                  <option value="256k">256 kbps</option>
+                  <option value="320k">320 kbps</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="sampleRate">采样率</label>
+                <select id="sampleRate">
+                  <option value="">保持/自动</option>
+                  <option value="44100">44.1 kHz</option>
+                  <option value="48000">48 kHz</option>
+                  <option value="96000">96 kHz</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label for="nameSuffix">文件名时间后缀</label>
+                <input id="nameSuffix" type="text" value="_{时间}" title="支持 {时间} 占位符" />
+              </div>
+            </div>
+            <label class="checkline"><input id="overwriteSafe" type="checkbox" checked /> 自动追加毫秒与序号，避免文件重名</label>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><h2>4. 一键批量操作</h2></div>
+          <div class="panel-body">
+            <div class="action-card">
+              <h3>提取所有视频的音频</h3>
+              <p>从视频流中提取音轨，并转换为上方选定的音频格式。</p>
+              <button class="btn primary task-btn" id="extractBtn" type="button">一键提取全部视频音频</button>
+            </div>
+            <div class="action-card">
+              <h3>批量转换视频格式</h3>
+              <p>处理识别为“视频”的全部文件，输出为选定视频格式。</p>
+              <button class="btn success task-btn" id="convertVideoBtn" type="button">一键转换全部视频</button>
+            </div>
+            <div class="action-card">
+              <h3>批量转换音频格式</h3>
+              <p>处理识别为“音频”的全部文件，输出为选定音频格式。</p>
+              <button class="btn primary task-btn" id="convertAudioBtn" type="button">一键转换全部音频</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><h2>使用说明</h2></div>
+          <div class="panel-body">
+            <ul class="tips">
+              <li>支持按扩展名识别大量音视频格式，并交由 FFmpeg 尝试解码。</li>
+              <li>大型或超高清视频会占用较多内存，建议关闭其他占内存页面。</li>
+              <li>浏览器版按队列逐个处理，避免同时转换导致内存溢出。</li>
+              <li>若某种少见编码失败，请尝试更常见的 MP4、MP3、WAV 或 MKV 输出。</li>
+              <li>“选择导出文件夹”在部分浏览器不可用，此时会自动使用下载方式保存。</li>
+            </ul>
+          </div>
+        </article>
+      </aside>
+    </div>
+
+    <div class="footer-note">
+      本工具使用 ffmpeg.wasm。实际可解码/编码范围由所加载的 FFmpeg WebAssembly 核心、浏览器内存和源文件编码共同决定。
+    </div>
+  </main>
+
+  <div class="toast-area" id="toastArea"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const VERSION = {
+        ffmpeg: '0.12.15',
+        core: '0.12.10'
+      };
+
+      const CDN = {
+        ffmpegScripts: [
+          `https://unpkg.com/@ffmpeg/ffmpeg@${VERSION.ffmpeg}/dist/umd/ffmpeg.js`,
+          `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${VERSION.ffmpeg}/dist/umd/ffmpeg.js`
+        ],
+        classWorkers: [
+          `https://unpkg.com/@ffmpeg/ffmpeg@${VERSION.ffmpeg}/dist/umd/814.ffmpeg.js`,
+          `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${VERSION.ffmpeg}/dist/umd/814.ffmpeg.js`
+        ],
+        cores: [
+          `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${VERSION.core}/dist/umd`,
+          `https://unpkg.com/@ffmpeg/core@${VERSION.core}/dist/umd`
+        ]
+      };
+
+      const VIDEO_EXTS = new Set((
+        'mp4,m4v,mkv,webm,mov,qt,avi,wmv,asf,flv,f4v,swf,mpeg,mpg,mpe,m2v,mpv,ts,mts,m2ts,m2t,vob,ogv,ogg,3gp,3g2,rm,rmvb,divx,xvid,dat,dv,mxf,gxf,nut,nsv,amv,roq,y4m,ivf,h264,264,avc,h265,265,hevc,av1,obu,vc1,ismv,mod,wtv,dvr-ms,camrec,trec,rec,prores,r3d,braw'.split(',')
+      ));
+      const AUDIO_EXTS = new Set((
+        'mp3,wav,wave,m4a,aac,flac,ogg,oga,opus,wma,ac3,eac3,dts,dtshd,truehd,alac,aiff,aif,aifc,ape,amr,awb,au,snd,caf,ra,ram,tta,tak,wv,mpc,mpp,spx,webm,mka,mid,midi,rmi,mod,xm,s3m,it,669,stm,mtm,ult,far,mdl,dmf,imf,okt,ptm,voc,8svx,dsf,dff,pcm,adp,adx,ast,brstm,bfstm,hca,xa'.split(',')
+      ));
+
+      const MIME_BY_EXT = {
+        mp4: 'video/mp4', mkv: 'video/x-matroska', webm: 'video/webm', mov: 'video/quicktime', avi: 'video/x-msvideo',
+        mpeg: 'video/mpeg', mpg: 'video/mpeg', m4v: 'video/x-m4v', ts: 'video/mp2t', flv: 'video/x-flv', ogv: 'video/ogg',
+        '3gp': 'video/3gpp', wmv: 'video/x-ms-wmv', gif: 'image/gif', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4',
+        aac: 'audio/aac', flac: 'audio/flac', ogg: 'audio/ogg', opus: 'audio/ogg', wma: 'audio/x-ms-wma', ac3: 'audio/ac3',
+        alac: 'audio/mp4', aiff: 'audio/aiff', au: 'audio/basic'
+      };
+
+      const state = {
+        files: [],
+        ffmpeg: null,
+        engineState: 'idle',
+        engineBlobURLs: null,
+        directoryHandle: null,
+        running: false,
+        cancelRequested: false,
+        activeItemId: null,
+        currentFileProgress: 0,
+        job: null
+      };
+
+      const el = id => document.getElementById(id);
+      const refs = {
+        dropZone: el('dropZone'), addFilesBtn: el('addFilesBtn'), addFolderBtn: el('addFolderBtn'), fileInput: el('fileInput'), folderInput: el('folderInput'),
+        fileTable: el('fileTable'), fileBody: el('fileBody'), emptyState: el('emptyState'), queueSummary: el('queueSummary'), masterCheck: el('masterCheck'),
+        selectAllBtn: el('selectAllBtn'), invertSelectBtn: el('invertSelectBtn'), removeSelectedBtn: el('removeSelectedBtn'), clearBtn: el('clearBtn'), selectedOnly: el('selectedOnly'),
+        engineDot: el('engineDot'), engineTitle: el('engineTitle'), engineDetail: el('engineDetail'), loadEngineBtn: el('loadEngineBtn'),
+        chooseFolderBtn: el('chooseFolderBtn'), directoryName: el('directoryName'), videoFormat: el('videoFormat'), audioFormat: el('audioFormat'),
+        videoQuality: el('videoQuality'), resolution: el('resolution'), audioBitrate: el('audioBitrate'), sampleRate: el('sampleRate'), nameSuffix: el('nameSuffix'), overwriteSafe: el('overwriteSafe'),
+        extractBtn: el('extractBtn'), convertVideoBtn: el('convertVideoBtn'), convertAudioBtn: el('convertAudioBtn'), stopBtn: el('stopBtn'),
+        overallBar: el('overallBar'), overallText: el('overallText'), overallPercent: el('overallPercent'), logBox: el('logBox'), toastArea: el('toastArea')
+      };
+
+      function uid() {
+        return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+      }
+
+      function extOf(name) {
+        const clean = name.split(/[?#]/)[0];
+        const dot = clean.lastIndexOf('.');
+        return dot > -1 ? clean.slice(dot + 1).toLowerCase() : '';
+      }
+
+      function baseName(name) {
+        const dot = name.lastIndexOf('.');
+        return dot > 0 ? name.slice(0, dot) : name;
+      }
+
+      function safeName(name) {
+        return name.replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_').replace(/\s+/g, ' ').trim() || 'output';
+      }
+
+      function classifyFile(file) {
+        const ext = extOf(file.name);
+        const mime = (file.type || '').toLowerCase();
+        if (mime.startsWith('video/')) return 'video';
+        if (mime.startsWith('audio/')) return 'audio';
+        const isVideo = VIDEO_EXTS.has(ext);
+        const isAudio = AUDIO_EXTS.has(ext);
+        if (isVideo && !isAudio) return 'video';
+        if (isAudio && !isVideo) return 'audio';
+        if (ext === 'webm') return mime.includes('audio') ? 'audio' : 'video';
+        if (ext === 'ogg') return mime.includes('video') ? 'video' : 'audio';
+        return 'unknown';
+      }
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        return `${(bytes / Math.pow(1024, i)).toFixed(i ? 2 : 0)} ${units[i]}`;
+      }
+
+      function typeText(type) {
+        return type === 'video' ? '视频' : type === 'audio' ? '音频' : '待指定';
+      }
+
+      function statusText(status) {
+        const map = { waiting: '等待', loading: '读取中', processing: '转换中', saving: '保存中', success: '已完成', error: '失败', cancelled: '已取消', skipped: '已跳过' };
+        return map[status] || status;
+      }
+
+      function log(message, level = 'info') {
+        const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        const prefix = level === 'error' ? '[错误]' : level === 'success' ? '[完成]' : '[信息]';
+        refs.logBox.textContent += `\n${time} ${prefix} ${message}`;
+        refs.logBox.scrollTop = refs.logBox.scrollHeight;
+      }
+
+      function toast(message, type = 'info', duration = 4200) {
+        const node = document.createElement('div');
+        node.className = `toast ${type}`;
+        node.textContent = message;
+        refs.toastArea.appendChild(node);
+        setTimeout(() => node.remove(), duration);
+      }
+
+      function setEngineUI(status, detail = '') {
+        state.engineState = status;
+        refs.engineDot.className = `dot ${status === 'ready' ? 'ready' : status === 'loading' ? 'loading' : status === 'error' ? 'error' : ''}`;
+        if (status === 'ready') {
+          refs.engineTitle.textContent = 'FFmpeg 引擎已就绪';
+          refs.engineDetail.textContent = detail || '可以开始批量转换';
+          refs.loadEngineBtn.textContent = '引擎已加载';
+          refs.loadEngineBtn.disabled = true;
+        } else if (status === 'loading') {
+          refs.engineTitle.textContent = '正在加载 FFmpeg 引擎';
+          refs.engineDetail.textContent = detail || '请保持网络连接';
+          refs.loadEngineBtn.textContent = '正在加载…';
+          refs.loadEngineBtn.disabled = true;
+        } else if (status === 'error') {
+          refs.engineTitle.textContent = 'FFmpeg 引擎加载失败';
+          refs.engineDetail.textContent = detail || '请检查网络后重试';
+          refs.loadEngineBtn.textContent = '重新加载引擎';
+          refs.loadEngineBtn.disabled = false;
+        } else {
+          refs.engineTitle.textContent = 'FFmpeg 引擎未加载';
+          refs.engineDetail.textContent = '首次加载约需下载 31 MB 核心文件';
+          refs.loadEngineBtn.textContent = '初始化转换引擎';
+          refs.loadEngineBtn.disabled = false;
+        }
+      }
+
+      function setRunningUI(running) {
+        state.running = running;
+        document.querySelectorAll('.task-btn').forEach(btn => btn.disabled = running);
+        refs.loadEngineBtn.disabled = running || state.engineState === 'ready' || state.engineState === 'loading';
+        refs.addFilesBtn.disabled = running;
+        refs.addFolderBtn.disabled = running;
+        refs.clearBtn.disabled = running;
+        refs.removeSelectedBtn.disabled = running;
+        refs.stopBtn.disabled = !running;
+        refs.chooseFolderBtn.disabled = running;
+      }
+
+      function updateOverall(done = 0, total = 0, fileProgress = 0, label = '') {
+        const pct = total > 0 ? Math.min(100, ((done + fileProgress) / total) * 100) : 0;
+        refs.overallBar.style.width = `${pct.toFixed(2)}%`;
+        refs.overallPercent.textContent = `${Math.round(pct)}%`;
+        refs.overallText.textContent = label || (total ? `已完成 ${done}/${total}` : '等待任务');
+      }
+
+      function renderFiles() {
+        refs.fileBody.innerHTML = '';
+        refs.fileTable.hidden = state.files.length === 0;
+        refs.emptyState.hidden = state.files.length !== 0;
+        const videoCount = state.files.filter(x => x.type === 'video').length;
+        const audioCount = state.files.filter(x => x.type === 'audio').length;
+        const unknownCount = state.files.length - videoCount - audioCount;
+        refs.queueSummary.textContent = `共 ${state.files.length} 个 · 视频 ${videoCount} · 音频 ${audioCount}${unknownCount ? ` · 待指定 ${unknownCount}` : ''}`;
+
+        for (const item of state.files) {
+          const tr = document.createElement('tr');
+          tr.dataset.id = item.id;
+          tr.innerHTML = `
+            <td><input class="row-check" type="checkbox" ${item.selected ? 'checked' : ''} aria-label="选择 ${escapeHtml(item.file.name)}" /></td>
+            <td><div class="filename" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</div></td>
+            <td>
+              <select class="type-select" aria-label="文件类型">
+                <option value="video" ${item.type === 'video' ? 'selected' : ''}>视频</option>
+                <option value="audio" ${item.type === 'audio' ? 'selected' : ''}>音频</option>
+                <option value="unknown" ${item.type === 'unknown' ? 'selected' : ''}>待指定</option>
+              </select>
+            </td>
+            <td>${escapeHtml((extOf(item.file.name) || '无扩展名').toUpperCase())}</td>
+            <td>${formatBytes(item.file.size)}</td>
+            <td><progress class="row-progress" max="1" value="${item.progress || 0}"></progress></td>
+            <td><span class="status ${item.status}">${statusText(item.status)}</span>${item.error ? `<div title="${escapeHtml(item.error)}" style="color:var(--danger);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px">${escapeHtml(item.error)}</div>` : ''}</td>
+            <td><button class="btn small remove-row" type="button" ${state.running ? 'disabled' : ''}>移除</button></td>`;
+          tr.querySelector('.row-check').addEventListener('change', e => {
+            item.selected = e.target.checked;
+            updateMasterCheck();
+          });
+          tr.querySelector('.type-select').addEventListener('change', e => {
+            item.type = e.target.value;
+            renderFiles();
+          });
+          tr.querySelector('.remove-row').addEventListener('click', () => {
+            state.files = state.files.filter(x => x.id !== item.id);
+            renderFiles();
+          });
+          refs.fileBody.appendChild(tr);
+        }
+        updateMasterCheck();
+      }
+
+      function updateItemRow(item) {
+        const tr = refs.fileBody.querySelector(`tr[data-id="${CSS.escape(item.id)}"]`);
+        if (!tr) return;
+        const progress = tr.querySelector('.row-progress');
+        if (progress) progress.value = item.progress || 0;
+        const statusCell = tr.children[6];
+        if (statusCell) {
+          statusCell.innerHTML = `<span class="status ${item.status}">${statusText(item.status)}</span>${item.error ? `<div title="${escapeHtml(item.error)}" style="color:var(--danger);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px">${escapeHtml(item.error)}</div>` : ''}`;
+        }
+      }
+
+      function updateMasterCheck() {
+        if (!state.files.length) {
+          refs.masterCheck.checked = false;
+          refs.masterCheck.indeterminate = false;
+          return;
+        }
+        const selected = state.files.filter(x => x.selected).length;
+        refs.masterCheck.checked = selected === state.files.length;
+        refs.masterCheck.indeterminate = selected > 0 && selected < state.files.length;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
+      }
+
+      function addFiles(fileList) {
+        const files = Array.from(fileList || []);
+        if (!files.length) return;
+        const existing = new Set(state.files.map(x => `${x.file.name}|${x.file.size}|${x.file.lastModified}`));
+        let added = 0;
+        for (const file of files) {
+          const key = `${file.name}|${file.size}|${file.lastModified}`;
+          if (existing.has(key)) continue;
+          existing.add(key);
+          state.files.push({ id: uid(), file, type: classifyFile(file), selected: true, status: 'waiting', progress: 0, error: '' });
+          added++;
+        }
+        renderFiles();
+        toast(`已添加 ${added} 个文件${added < files.length ? `，跳过 ${files.length - added} 个重复文件` : ''}`, 'success');
+      }
+
+      async function loadScriptWithFallback(urls) {
+        let lastError;
+        for (const url of urls) {
+          try {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = url;
+              script.crossOrigin = 'anonymous';
+              script.onload = resolve;
+              script.onerror = () => reject(new Error(`脚本加载失败：${url}`));
+              document.head.appendChild(script);
+            });
+            return;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        throw lastError || new Error('FFmpeg 脚本加载失败');
+      }
+
+      async function fetchBlobURL(urls, mime, progressLabel) {
+        let lastError;
+        for (const url of urls) {
+          try {
+            const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const total = Number(response.headers.get('content-length')) || 0;
+            if (!response.body || !total) {
+              const blob = await response.blob();
+              setEngineUI('loading', `${progressLabel}：${formatBytes(blob.size)}`);
+              return URL.createObjectURL(new Blob([blob], { type: mime }));
+            }
+            const reader = response.body.getReader();
+            const chunks = [];
+            let received = 0;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              received += value.length;
+              setEngineUI('loading', `${progressLabel}：${Math.round(received / total * 100)}%（${formatBytes(received)} / ${formatBytes(total)}）`);
+            }
+            return URL.createObjectURL(new Blob(chunks, { type: mime }));
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        throw lastError || new Error(`${progressLabel}下载失败`);
+      }
+
+      async function prepareEngineBlobs() {
+        if (state.engineBlobURLs) return state.engineBlobURLs;
+        const classWorkerURL = await fetchBlobURL(CDN.classWorkers, 'text/javascript', '下载工作线程');
+        let coreURL, wasmURL;
+        let lastError;
+        for (const base of CDN.cores) {
+          try {
+            coreURL = await fetchBlobURL([`${base}/ffmpeg-core.js`], 'text/javascript', '下载 FFmpeg 脚本');
+            wasmURL = await fetchBlobURL([`${base}/ffmpeg-core.wasm`], 'application/wasm', '下载 FFmpeg 核心');
+            break;
+          } catch (err) {
+            lastError = err;
+            if (coreURL) URL.revokeObjectURL(coreURL);
+            coreURL = null;
+          }
+        }
+        if (!coreURL || !wasmURL) throw lastError || new Error('核心文件下载失败');
+        state.engineBlobURLs = { classWorkerURL, coreURL, wasmURL };
+        return state.engineBlobURLs;
+      }
+
+      async function loadEngine() {
+        if (state.ffmpeg?.loaded) return state.ffmpeg;
+        if (state.engineState === 'loading') {
+          while (state.engineState === 'loading') await new Promise(r => setTimeout(r, 100));
+          if (state.ffmpeg?.loaded) return state.ffmpeg;
+        }
+        setEngineUI('loading', '正在加载运行组件…');
+        try {
+          if (!window.FFmpegWASM?.FFmpeg) {
+            await loadScriptWithFallback(CDN.ffmpegScripts);
+          }
+          const urls = await prepareEngineBlobs();
+          state.ffmpeg = new window.FFmpegWASM.FFmpeg();
+          state.ffmpeg.on('log', ({ message }) => {
+            if (message) log(message);
+          });
+          state.ffmpeg.on('progress', ({ progress }) => {
+            if (!state.running || !state.activeItemId) return;
+            const safe = Math.max(0, Math.min(1, Number(progress) || 0));
+            state.currentFileProgress = safe;
+            const item = state.files.find(x => x.id === state.activeItemId);
+            if (item) {
+              item.progress = safe;
+              updateItemRow(item);
+            }
+            if (state.job) updateOverall(state.job.done, state.job.total, safe, state.job.label);
+          });
+          await state.ffmpeg.load(urls);
+          setEngineUI('ready');
+          log('FFmpeg WebAssembly 引擎加载完成。', 'success');
+          toast('转换引擎已就绪', 'success');
+          return state.ffmpeg;
+        } catch (err) {
+          state.ffmpeg = null;
+          setEngineUI('error', humanError(err));
+          log(`引擎加载失败：${humanError(err)}`, 'error');
+          toast(`引擎加载失败：${humanError(err)}`, 'error', 8000);
+          throw err;
+        }
+      }
+
+      function timestamp() {
+        const d = new Date();
+        const pad = (n, len = 2) => String(n).padStart(len, '0');
+        return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${pad(d.getMilliseconds(), 3)}`;
+      }
+
+      function makeOutputName(inputName, outExt, index) {
+        const base = safeName(baseName(inputName));
+        const time = timestamp();
+        const template = refs.nameSuffix.value || '_{时间}';
+        let suffix = template.includes('{时间}') ? template.replaceAll('{时间}', time) : `${template}_${time}`;
+        if (refs.overwriteSafe.checked) suffix += `_${String(index + 1).padStart(3, '0')}`;
+        return `${base}${safeName(suffix)}.${outExt}`;
+      }
+
+      function uniqueVirtualName(file, index) {
+        const ext = extOf(file.name);
+        return `input_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 7)}${ext ? `.${ext}` : ''}`;
+      }
+
+      function crfForQuality() {
+        return refs.videoQuality.value === 'high' ? '19' : refs.videoQuality.value === 'small' ? '29' : '23';
+      }
+
+      function videoArgs(input, output, format) {
+        const crf = crfForQuality();
+        const args = ['-i', input, '-map', '0:v:0?', '-map', '0:a:0?'];
+        if (refs.resolution.value !== 'original') {
+          args.push('-vf', `scale=-2:${refs.resolution.value}:force_original_aspect_ratio=decrease`);
+        }
+        const bitrate = refs.audioBitrate.value;
+        const commonX264 = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', crf, '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', bitrate];
+        switch (format) {
+          case 'mp4': args.push(...commonX264, '-movflags', '+faststart'); break;
+          case 'mkv': args.push(...commonX264); break;
+          case 'mov': args.push(...commonX264, '-movflags', '+faststart'); break;
+          case 'webm': args.push('-c:v', 'libvpx-vp9', '-crf', crf, '-b:v', '0', '-row-mt', '1', '-c:a', 'libopus', '-b:a', bitrate); break;
+          case 'avi': args.push('-c:v', 'mpeg4', '-q:v', refs.videoQuality.value === 'high' ? '2' : refs.videoQuality.value === 'small' ? '7' : '4', '-c:a', 'libmp3lame', '-b:a', bitrate); break;
+          case 'mpeg':
+          case 'mpg': args.push('-c:v', 'mpeg2video', '-q:v', refs.videoQuality.value === 'high' ? '2' : refs.videoQuality.value === 'small' ? '7' : '4', '-c:a', 'mp2', '-b:a', '192k', '-f', 'mpeg'); break;
+          case 'm4v': args.push('-an', '-c:v', 'mpeg4', '-q:v', refs.videoQuality.value === 'high' ? '2' : refs.videoQuality.value === 'small' ? '7' : '4', '-f', 'm4v'); break;
+          case 'ts': args.push(...commonX264, '-f', 'mpegts'); break;
+          case 'flv': args.push('-c:v', 'flv', '-q:v', refs.videoQuality.value === 'high' ? '2' : refs.videoQuality.value === 'small' ? '8' : '5', '-c:a', 'libmp3lame', '-b:a', bitrate, '-f', 'flv'); break;
+          case 'ogv': args.push('-c:v', 'libtheora', '-q:v', refs.videoQuality.value === 'high' ? '8' : refs.videoQuality.value === 'small' ? '4' : '6', '-c:a', 'libvorbis', '-q:a', '5'); break;
+          case '3gp': args.push('-c:v', 'mpeg4', '-q:v', '5', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2', '-f', '3gp'); break;
+          case 'wmv': args.push('-c:v', 'wmv2', '-q:v', '4', '-c:a', 'wmav2', '-b:a', bitrate, '-f', 'asf'); break;
+          case 'gif': {
+            const scale = refs.resolution.value === 'original' ? '' : `,scale=-2:${refs.resolution.value}:force_original_aspect_ratio=decrease`;
+            args.length = 0;
+            args.push('-i', input, '-filter_complex', `[0:v]fps=15${scale},split[s0][s1];[s0]palettegen=max_colors=256[p];[s1][p]paletteuse=dither=sierra2_4a`, '-loop', '0');
+            break;
+          }
+          default: break;
+        }
+        args.push(output);
+        return args;
+      }
+
+      function outputExtension(operation, format) {
+        if (operation !== 'video' && format === 'alac') return 'm4a';
+        return format;
+      }
+
+      function audioArgs(input, output, format) {
+        const bitrate = refs.audioBitrate.value;
+        const args = ['-i', input, '-vn', '-map', '0:a:0?'];
+        const sampleRate = refs.sampleRate.value;
+        if (sampleRate) args.push('-ar', sampleRate);
+        switch (format) {
+          case 'mp3': args.push('-c:a', 'libmp3lame', '-b:a', bitrate, '-id3v2_version', '3'); break;
+          case 'wav': args.push('-c:a', 'pcm_s16le'); break;
+          case 'm4a': args.push('-c:a', 'aac', '-b:a', bitrate, '-movflags', '+faststart'); break;
+          case 'aac': args.push('-c:a', 'aac', '-b:a', bitrate, '-f', 'adts'); break;
+          case 'flac': args.push('-c:a', 'flac', '-compression_level', refs.videoQuality.value === 'high' ? '8' : '5'); break;
+          case 'ogg': args.push('-c:a', 'libvorbis', '-q:a', refs.videoQuality.value === 'high' ? '7' : refs.videoQuality.value === 'small' ? '3' : '5'); break;
+          case 'opus': args.push('-c:a', 'libopus', '-b:a', bitrate, '-vbr', 'on'); break;
+          case 'wma': args.push('-c:a', 'wmav2', '-b:a', bitrate, '-f', 'asf'); break;
+          case 'ac3': args.push('-c:a', 'ac3', '-b:a', bitrate); break;
+          case 'alac': args.push('-c:a', 'alac'); break;
+          case 'aiff': args.push('-c:a', 'pcm_s16be', '-f', 'aiff'); break;
+          case 'au': args.push('-c:a', 'pcm_s16be', '-f', 'au'); break;
+          default: break;
+        }
+        args.push(output);
+        return args;
+      }
+
+      async function saveOutput(data, filename, mime) {
+        const blob = new Blob([data.buffer], { type: mime || 'application/octet-stream' });
+        if (state.directoryHandle) {
+          try {
+            const permission = await verifyDirectoryPermission(state.directoryHandle);
+            if (!permission) throw new Error('没有文件夹写入权限');
+            const handle = await state.directoryHandle.getFileHandle(filename, { create: true });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return 'folder';
+          } catch (err) {
+            log(`写入指定文件夹失败，改用浏览器下载：${humanError(err)}`, 'error');
+            toast('指定文件夹不可写，已改用浏览器下载', 'error');
+          }
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return 'download';
+      }
+
+      async function verifyDirectoryPermission(handle) {
+        const options = { mode: 'readwrite' };
+        if ((await handle.queryPermission?.(options)) === 'granted') return true;
+        if ((await handle.requestPermission?.(options)) === 'granted') return true;
+        return false;
+      }
+
+      function humanError(err) {
+        const text = String(err?.message || err || '未知错误');
+        if (/memory|abort\(out of memory\)|OOM/i.test(text)) return '浏览器内存不足，请减少文件大小或降低输出分辨率';
+        if (/SharedArrayBuffer/i.test(text)) return '浏览器安全环境不满足要求';
+        if (/fetch|network|Failed to load|HTTP/i.test(text)) return '网络加载失败，请检查网络或稍后重试';
+        if (/NotAllowedError|permission/i.test(text)) return '未获得所需权限';
+        return text.replace(/^Error:\s*/i, '');
+      }
+
+      function matchesOperation(item, operation) {
+        if (refs.selectedOnly.checked && !item.selected) return false;
+        if (operation === 'audio') return item.type === 'audio';
+        if (operation === 'video' || operation === 'extract') return item.type === 'video';
+        return false;
+      }
+
+      async function processBatch(operation) {
+        if (state.running) return;
+        const targets = state.files.filter(item => matchesOperation(item, operation));
+        if (!targets.length) {
+          toast(operation === 'audio' ? '队列中没有可处理的音频文件' : '队列中没有可处理的视频文件', 'error');
+          return;
+        }
+        state.cancelRequested = false;
+        state.job = { done: 0, total: targets.length, label: '准备任务…' };
+        targets.forEach(item => { item.status = 'waiting'; item.progress = 0; item.error = ''; updateItemRow(item); });
+        setRunningUI(true);
+        updateOverall(0, targets.length, 0, `准备处理 ${targets.length} 个文件`);
+
+        try {
+          await loadEngine();
+          let success = 0;
+          let failed = 0;
+          for (let index = 0; index < targets.length; index++) {
+            if (state.cancelRequested) break;
+            const item = targets[index];
+            state.activeItemId = item.id;
+            state.currentFileProgress = 0;
+            state.job.done = index;
+            state.job.label = `正在处理 ${index + 1}/${targets.length}：${item.file.name}`;
+            item.status = 'loading';
+            item.progress = 0;
+            updateItemRow(item);
+            updateOverall(index, targets.length, 0, state.job.label);
+
+            const inName = uniqueVirtualName(item.file, index);
+            const selectedFormat = operation === 'video' ? refs.videoFormat.value : refs.audioFormat.value;
+            const outExt = outputExtension(operation, selectedFormat);
+            const outName = `output_${Date.now()}_${index}.${outExt}`;
+            const finalName = makeOutputName(item.file.name, outExt, index);
+            try {
+              log(`读取文件：${item.file.name}（${formatBytes(item.file.size)}）`);
+              const data = new Uint8Array(await item.file.arrayBuffer());
+              if (state.cancelRequested) throw new DOMException('任务已取消', 'AbortError');
+              await state.ffmpeg.writeFile(inName, data);
+              item.status = 'processing';
+              updateItemRow(item);
+
+              const args = operation === 'video'
+                ? videoArgs(inName, outName, selectedFormat)
+                : audioArgs(inName, outName, selectedFormat);
+              log(`执行：ffmpeg ${args.join(' ')}`);
+              const exitCode = await state.ffmpeg.exec(args);
+              if (state.cancelRequested) throw new DOMException('任务已取消', 'AbortError');
+              if (exitCode !== 0) throw new Error(`FFmpeg 返回错误代码 ${exitCode}`);
+
+              item.status = 'saving';
+              item.progress = .98;
+              updateItemRow(item);
+              const outputData = await state.ffmpeg.readFile(outName);
+              if (!(outputData instanceof Uint8Array) || outputData.byteLength === 0) throw new Error('输出文件为空');
+              const mode = await saveOutput(outputData, finalName, MIME_BY_EXT[outExt]);
+              item.status = 'success';
+              item.progress = 1;
+              success++;
+              log(`已保存：${finalName}（${formatBytes(outputData.byteLength)}，${mode === 'folder' ? '指定文件夹' : '浏览器下载'}）`, 'success');
+            } catch (err) {
+              if (state.cancelRequested || err?.name === 'AbortError') {
+                item.status = 'cancelled';
+                item.error = '用户停止任务';
+                log(`已取消：${item.file.name}`);
+              } else {
+                item.status = 'error';
+                item.error = humanError(err);
+                failed++;
+                log(`转换失败：${item.file.name}：${item.error}`, 'error');
+              }
+            } finally {
+              item.progress = item.status === 'success' ? 1 : item.progress;
+              updateItemRow(item);
+              try { if (state.ffmpeg?.loaded) await state.ffmpeg.deleteFile(inName); } catch (_) {}
+              try { if (state.ffmpeg?.loaded) await state.ffmpeg.deleteFile(outName); } catch (_) {}
+            }
+          }
+
+          const processed = success + failed;
+          if (state.cancelRequested) {
+            targets.filter(x => x.status === 'waiting' || x.status === 'loading' || x.status === 'processing' || x.status === 'saving').forEach(x => {
+              x.status = 'cancelled'; x.error = '任务已停止'; updateItemRow(x);
+            });
+            updateOverall(processed, targets.length, 0, `任务已停止：成功 ${success}，失败 ${failed}`);
+            toast(`任务已停止：成功 ${success}，失败 ${failed}`, 'error');
+          } else {
+            state.job.done = targets.length;
+            updateOverall(targets.length, targets.length, 0, `处理完成：成功 ${success}，失败 ${failed}`);
+            toast(`批量任务完成：成功 ${success}，失败 ${failed}`, failed ? 'error' : 'success', 6500);
+          }
+        } catch (err) {
+          log(`任务启动失败：${humanError(err)}`, 'error');
+          toast(`任务启动失败：${humanError(err)}`, 'error', 8000);
+        } finally {
+          state.activeItemId = null;
+          state.job = null;
+          setRunningUI(false);
+        }
+      }
+
+      async function stopTask() {
+        if (!state.running) return;
+        state.cancelRequested = true;
+        refs.stopBtn.disabled = true;
+        refs.overallText.textContent = '正在停止任务…';
+        log('收到停止请求，正在终止当前转换…');
+        if (state.ffmpeg) {
+          try { state.ffmpeg.terminate(); } catch (_) {}
+          state.ffmpeg = null;
+          setEngineUI('idle', '任务停止后需要重新加载引擎');
+        }
+      }
+
+      async function chooseDirectory() {
+        if (!('showDirectoryPicker' in window)) {
+          toast('当前浏览器不支持直接选择导出文件夹，将使用浏览器下载。建议使用最新版 Chrome 或 Edge。', 'error', 7000);
+          return;
+        }
+        try {
+          const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'media-converter-output' });
+          if (!(await verifyDirectoryPermission(handle))) throw new Error('未获得写入权限');
+          state.directoryHandle = handle;
+          refs.directoryName.textContent = `导出到：${handle.name}`;
+          refs.directoryName.title = handle.name;
+          refs.chooseFolderBtn.textContent = '更换导出文件夹';
+          toast(`已选择导出文件夹：${handle.name}`, 'success');
+        } catch (err) {
+          if (err?.name !== 'AbortError') toast(`选择文件夹失败：${humanError(err)}`, 'error');
+        }
+      }
+
+      refs.addFilesBtn.addEventListener('click', e => { e.stopPropagation(); refs.fileInput.click(); });
+      refs.addFolderBtn.addEventListener('click', e => { e.stopPropagation(); refs.folderInput.click(); });
+      refs.dropZone.addEventListener('click', e => { if (e.target === refs.dropZone || e.target.closest('.drop-icon, strong, span')) refs.fileInput.click(); });
+      refs.dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') refs.fileInput.click(); });
+      refs.fileInput.addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+      refs.folderInput.addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+      ['dragenter', 'dragover'].forEach(type => refs.dropZone.addEventListener(type, e => { e.preventDefault(); e.stopPropagation(); refs.dropZone.classList.add('dragover'); }));
+      ['dragleave', 'drop'].forEach(type => refs.dropZone.addEventListener(type, e => { e.preventDefault(); e.stopPropagation(); refs.dropZone.classList.remove('dragover'); }));
+      refs.dropZone.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+
+      refs.masterCheck.addEventListener('change', e => { state.files.forEach(x => x.selected = e.target.checked); renderFiles(); });
+      refs.selectAllBtn.addEventListener('click', () => { state.files.forEach(x => x.selected = true); renderFiles(); });
+      refs.invertSelectBtn.addEventListener('click', () => { state.files.forEach(x => x.selected = !x.selected); renderFiles(); });
+      refs.removeSelectedBtn.addEventListener('click', () => { state.files = state.files.filter(x => !x.selected); renderFiles(); });
+      refs.clearBtn.addEventListener('click', () => { state.files = []; renderFiles(); updateOverall(); });
+      refs.loadEngineBtn.addEventListener('click', () => loadEngine().catch(() => {}));
+      refs.chooseFolderBtn.addEventListener('click', chooseDirectory);
+      refs.extractBtn.addEventListener('click', () => processBatch('extract'));
+      refs.convertVideoBtn.addEventListener('click', () => processBatch('video'));
+      refs.convertAudioBtn.addEventListener('click', () => processBatch('audio'));
+      refs.stopBtn.addEventListener('click', stopTask);
+
+      window.addEventListener('beforeunload', e => {
+        if (state.running) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+
+      renderFiles();
+      setEngineUI('idle');
+      updateOverall();
+    })();
+  </script>
+</body>
+</html>
