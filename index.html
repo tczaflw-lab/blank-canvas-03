@@ -933,7 +933,7 @@
       grid-template-areas: "rewind-grid play forward-grid";
       align-items: center;
       column-gap: clamp(14px, 3vw, 42px);
-      margin: clamp(16px, 2.8vw, 26px) 0 clamp(18px, 2.6vw, 26px);
+      margin: clamp(20px, 3.5vw, 32.5px) 0 clamp(18px, 2.6vw, 26px);
       padding-inline: clamp(0px, 1vw, 10px);
     }
 
@@ -1098,7 +1098,7 @@
       .transport {
         grid-template-columns: minmax(0, 1fr) clamp(66px, 18cqw, 84px) minmax(0, 1fr);
         column-gap: clamp(7px, 2.2cqw, 13px);
-        margin: 18px 0 20px;
+        margin: 22.5px 0 20px;
         padding-inline: 0;
       }
 
@@ -1124,7 +1124,7 @@
       .transport {
         grid-template-columns: minmax(0, 1fr) clamp(58px, 18cqw, 68px) minmax(0, 1fr);
         column-gap: 5px;
-        margin: 16px 0 17px;
+        margin: 20px 0 17px;
       }
 
       .seek-grid { gap: 5px; }
@@ -1170,7 +1170,7 @@
       .player-card { padding-block: 12px; }
       .track-line { min-height: 44px; margin-bottom: 4px; }
       .time-row { margin-bottom: 5px; font-size: 12px; }
-      .transport { margin-block: 8px 8px; }
+      .transport { margin-block: 10px 8px; }
       .seek-button { min-height: 40px; padding-block: 7px; }
       .play-button { width: 68px; height: 68px; }
       .play-button svg { width: 25px; height: 25px; }
@@ -1180,9 +1180,9 @@
     }
 
     /*
-       竖屏设备取消播放列表的独立滚动层，让整页承担滚动。
-       这样手指从列表任意位置开始滑动时，列表末尾之后会继续滚动页面，
-       不会被内部滚动容器截住，主题设置和页面底部始终可以到达。
+       竖屏继续保留播放列表自身的滚动高度，同时允许滚动链向页面无缝传递。
+       JavaScript 会把一次手势中列表无法继续消耗的剩余距离立即交给整页，
+       因此到达列表顶部或底部时无需松手，也不会先卡一下。
     */
     @media (orientation: portrait) {
       html,
@@ -1194,11 +1194,13 @@
       }
 
       .audio-list {
-        max-height: none;
-        overflow: visible;
-        overscroll-behavior: auto;
-        touch-action: pan-y;
-        padding-right: 0;
+        max-height: min(42dvh, 360px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: auto;
+        -webkit-overflow-scrolling: touch;
+        /* 由脚本统一分配列表与页面的滚动距离，避免浏览器在边界处重新起手势。 */
+        touch-action: none;
       }
 
       .audio-list:not(.reorder-mode) .audio-item,
@@ -2912,7 +2914,162 @@
         });
       }
 
+
+      /*
+       * 播放列表与页面的无缝滚动链：
+       * - 手指上滑：列表先向下滚；到达底部后，同一次手势的剩余距离立刻滚动页面。
+       * - 手指下滑：列表先向上滚；到达顶部后，同一次手势的剩余距离立刻滚动页面。
+       * - 支持触摸惯性和鼠标滚轮/触控板跨边界传递，避免边界处出现一次“卡住”。
+       */
+      function installPlaylistScrollBridge() {
+        const list = ui.audioList;
+        const pageScroller = () => document.scrollingElement || document.documentElement;
+        const EPSILON = 0.5;
+        let touchState = null;
+        let momentumFrame = 0;
+
+        const cancelMomentum = () => {
+          if (momentumFrame) cancelAnimationFrame(momentumFrame);
+          momentumFrame = 0;
+        };
+
+        const isScrollableList = () => {
+          const style = getComputedStyle(list);
+          return style.overflowY !== 'visible' && list.scrollHeight > list.clientHeight + 1;
+        };
+
+        const distributeScroll = delta => {
+          if (!Number.isFinite(delta) || Math.abs(delta) < EPSILON) return 0;
+
+          let remaining = delta;
+          let consumed = 0;
+          const listMax = Math.max(0, list.scrollHeight - list.clientHeight);
+          const listBefore = list.scrollTop;
+          const listTarget = clamp(listBefore + remaining, 0, listMax);
+          list.scrollTop = listTarget;
+          const listUsed = list.scrollTop - listBefore;
+          consumed += listUsed;
+          remaining -= listUsed;
+
+          if (Math.abs(remaining) >= EPSILON) {
+            const page = pageScroller();
+            const pageMax = Math.max(0, page.scrollHeight - page.clientHeight);
+            const pageBefore = page.scrollTop;
+            const pageTarget = clamp(pageBefore + remaining, 0, pageMax);
+            page.scrollTop = pageTarget;
+            const pageUsed = page.scrollTop - pageBefore;
+            consumed += pageUsed;
+            remaining -= pageUsed;
+          }
+
+          return consumed;
+        };
+
+        const startMomentum = initialVelocity => {
+          cancelMomentum();
+          if (!Number.isFinite(initialVelocity) || Math.abs(initialVelocity) < 0.06) return;
+          let velocity = clamp(initialVelocity, -2.8, 2.8);
+          let previousTime = performance.now();
+
+          const step = now => {
+            const elapsed = Math.min(32, Math.max(1, now - previousTime));
+            previousTime = now;
+            const requested = velocity * elapsed;
+            const consumed = distributeScroll(requested);
+
+            velocity *= Math.pow(0.94, elapsed / 16.667);
+            if (Math.abs(consumed) < EPSILON || Math.abs(velocity) < 0.025) {
+              momentumFrame = 0;
+              return;
+            }
+            momentumFrame = requestAnimationFrame(step);
+          };
+
+          momentumFrame = requestAnimationFrame(step);
+        };
+
+        list.addEventListener('touchstart', event => {
+          if (event.touches.length !== 1 || state.playlistDragActive) return;
+          if (event.target.closest('.drag-handle:not(:disabled)')) return;
+          cancelMomentum();
+          const touch = event.touches[0];
+          touchState = {
+            lastX: touch.clientX,
+            lastY: touch.clientY,
+            lastTime: performance.now(),
+            totalX: 0,
+            totalY: 0,
+            velocity: 0,
+            axis: '',
+            moved: false
+          };
+        }, { passive: true });
+
+        list.addEventListener('touchmove', event => {
+          if (!touchState || event.touches.length !== 1 || state.playlistDragActive) return;
+          const touch = event.touches[0];
+          const now = performance.now();
+          const fingerDX = touch.clientX - touchState.lastX;
+          const fingerDY = touch.clientY - touchState.lastY;
+          touchState.totalX += fingerDX;
+          touchState.totalY += fingerDY;
+
+          if (!touchState.axis) {
+            const absX = Math.abs(touchState.totalX);
+            const absY = Math.abs(touchState.totalY);
+            if (Math.max(absX, absY) < 5) return;
+            touchState.axis = absY >= absX * 0.85 ? 'y' : 'x';
+          }
+          if (touchState.axis !== 'y') return;
+
+          event.preventDefault();
+          const scrollDelta = -fingerDY;
+          const elapsed = Math.max(1, now - touchState.lastTime);
+          const instantVelocity = scrollDelta / elapsed;
+          touchState.velocity = touchState.velocity * 0.72 + instantVelocity * 0.28;
+          touchState.moved = touchState.moved || Math.abs(touchState.totalY) > 7;
+          distributeScroll(scrollDelta);
+
+          touchState.lastX = touch.clientX;
+          touchState.lastY = touch.clientY;
+          touchState.lastTime = now;
+        }, { passive: false });
+
+        const finishTouch = () => {
+          if (!touchState) return;
+          const velocity = touchState.axis === 'y' && touchState.moved ? touchState.velocity : 0;
+          touchState = null;
+          startMomentum(velocity);
+        };
+        list.addEventListener('touchend', finishTouch, { passive: true });
+        list.addEventListener('touchcancel', () => {
+          touchState = null;
+          cancelMomentum();
+        }, { passive: true });
+
+        list.addEventListener('wheel', event => {
+          if (event.ctrlKey || event.shiftKey || !isScrollableList()) return;
+          const delta = event.deltaMode === 1
+            ? event.deltaY * 16
+            : event.deltaMode === 2
+              ? event.deltaY * list.clientHeight
+              : event.deltaY;
+          if (!Number.isFinite(delta) || Math.abs(delta) < EPSILON) return;
+
+          const listMax = Math.max(0, list.scrollHeight - list.clientHeight);
+          const willCrossTop = delta < 0 && list.scrollTop + delta < 0;
+          const willCrossBottom = delta > 0 && list.scrollTop + delta > listMax;
+          const alreadyAtTop = delta < 0 && list.scrollTop <= EPSILON;
+          const alreadyAtBottom = delta > 0 && list.scrollTop >= listMax - EPSILON;
+          if (!(willCrossTop || willCrossBottom || alreadyAtTop || alreadyAtBottom)) return;
+
+          event.preventDefault();
+          distributeScroll(delta);
+        }, { passive: false });
+      }
+
       function bindEvents() {
+        installPlaylistScrollBridge();
         ui.fileInput.addEventListener('change', event => {
           const input = event.currentTarget;
           // FileList 是动态对象；必须先复制，再清空 input，否则所选文件会立即变成空列表。
